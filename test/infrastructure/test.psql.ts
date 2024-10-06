@@ -1,35 +1,16 @@
-import { PrismaClient } from '@/infrastructure/database/prisma/generated/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { TestPrismaClient } from '@test/infrastructure/prisma.extensions';
 
-export class TestPrismaClient {
-  private static instance: PrismaClient;
-
+export class TestPrismaClientFactory {
   private constructor() {}
 
-  public static async getInstance(): Promise<PrismaClient> {
-    if (!TestPrismaClient.instance) {
-      const connectionString =
-        'postgresql://example_user:example_password@db.psql-prisma.orb.local:5432/example_db';
-      console.log(connectionString);
-      const pool = new Pool({ connectionString });
-      console.log(pool);
-      const adapter = new PrismaPg(pool);
-      console.log(adapter);
+  public static async get(): Promise<TestPrismaClient> {
+    const connectionString =
+      'postgresql://example_user:example_password@db.psql-prisma.orb.local:5432/example_db';
+    const pool = new Pool({ connectionString });
+    const adapter = new PrismaPg(pool);
 
-      this.instance = new PrismaClient({ adapter });
-
-      await this.instance.$connect();
-    }
-    return this.instance;
+    return new TestPrismaClient(adapter);
   }
-
-  public static async closeInstance(): Promise<void> {
-    if (this.instance) {
-      await this.instance.$disconnect();
-      this.instance = null;
-    }
-  }
-
-  private static async createTables() {}
 }
