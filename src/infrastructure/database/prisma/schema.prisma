@@ -10,8 +10,183 @@ datasource db {
   url      = "postgresql://example_user:example_password@db.psql-prisma.orb.local:5432/example_db"
 }
 
+enum UserRole {
+  user
+  internal
+  admin
+}
+
+enum UserVendor {
+  apple
+  google
+  kakao
+}
+
+enum SubscriptionPayment {
+  paid
+  trial
+  redeem
+}
+
+enum SubscriptionStore {
+  appstore
+  playstore
+  inhouse
+}
+
+enum SubscriptionType {
+  period
+  lifetime
+}
+
+enum AppType {
+  useful
+  disturbing
+}
+
+enum OSType {
+  android
+  ios
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+enum Visibility {
+  public
+  private
+}
+
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id         String     @id @default(uuid()) @db.Uuid
+  role       UserRole   @default(user)
+  vendor     UserVendor
+  vendorId   String     @unique
+  nickname   String
+  email      String
+  locale     String
+  timezone   String
+  deleted_at DateTime?  @db.Timestamptz
+  updated_at DateTime   @db.Timestamptz
+  created_at DateTime   @db.Timestamptz
+
+  // Relations
+  userPreference UserPreference?
+  devices        Device[]
+  subscriptions  Subscription[]
+  apps           App[]
+  userProducts   UserProduct[]   @relation("UserUserProducts")
+}
+
+model UserPreference {
+  id          String    @id @db.Uuid
+  user        User      @relation(fields: [id], references: [id])
+  birthday    String?
+  gender      Gender?
+  goal        String?
+  daily_usage Int?
+  disturbs    String?
+  wakeup_time String    @default("08_00")
+  asleep_time String    @default("24_00")
+  deleted_at  DateTime? @db.Timestamptz
+  updated_at  DateTime  @db.Timestamptz
+  created_at  DateTime  @db.Timestamptz
+}
+
+model Device {
+  id          String   @id @default(uuid()) @db.Uuid
+  user        User     @relation(fields: [user_id], references: [id])
+  user_id     String   @db.Uuid
+  device_type String
+  os_type     OSType
+  os_version  String
+  app_version String
+  fcm_token   String?
+  updated_at  DateTime @db.Timestamptz
+  created_at  DateTime @db.Timestamptz
+
+  // Relations
+  apps App[]
+}
+
+model Subscription {
+  id               String              @id @default(uuid()) @db.Uuid
+  user             User                @relation(fields: [user_id], references: [id])
+  user_id          String              @db.Uuid
+  store            SubscriptionStore
+  transaction_id   String
+  payment_method   SubscriptionPayment
+  payment_currency String
+  payment_price    String
+  type             SubscriptionType
+  sku              String
+  period           String
+  purchased_at     DateTime            @db.Timestamptz
+  valid_through    DateTime?           @db.Timestamptz
+  metadata         Json
+  updated_at       DateTime            @db.Timestamptz
+  created_at       DateTime            @db.Timestamptz
+}
+
+model App {
+  id          String   @id @default(uuid()) @db.Uuid
+  device      Device?  @relation(fields: [device_id], references: [id])
+  device_id   String?  @db.Uuid
+  user        User     @relation(fields: [user_id], references: [id])
+  user_id     String   @db.Uuid
+  type        AppType  @default(disturbing)
+  token       String
+  bundleId    String?
+  displayName String?
+  updated_at  DateTime @db.Timestamptz
+  created_at  DateTime @db.Timestamptz
+
+  // Relations
+  appUserProducts AppUserProduct[]
+}
+
+model AppUserProduct {
+  app             App         @relation(fields: [app_id], references: [id])
+  app_id          String      @db.Uuid
+  userProduct     UserProduct @relation(fields: [user_product_id], references: [id])
+  user_product_id String      @db.Uuid
+  sequence        Int
+  updated_at      DateTime    @db.Timestamptz
+  created_at      DateTime    @db.Timestamptz
+
+  @@id([app_id, user_product_id])
+}
+
+model Product {
+  id               String     @id @default(uuid()) @db.Uuid
+  name             String
+  description      String
+  sku              String
+  visibility       Visibility @default(public)
+  display_sequence Int?
+  display_version  String?
+  display_language String?
+  updated_at       DateTime   @db.Timestamptz
+  created_at       DateTime   @db.Timestamptz
+
+  // Relations
+  userProducts UserProduct[]
+}
+
+model UserProduct {
+  id         String     @id @default(uuid()) @db.Uuid
+  product    Product    @relation(fields: [product_id], references: [id])
+  product_id String     @db.Uuid
+  owner      User       @relation("UserUserProducts", fields: [owner_id], references: [id])
+  owner_id   String     @db.Uuid
+  visibility Visibility @default(private)
+  metadata   Json
+  updated_at DateTime   @db.Timestamptz
+  created_at DateTime   @db.Timestamptz
+
+  // Relations
+  appUserProducts AppUserProduct[]
 }
